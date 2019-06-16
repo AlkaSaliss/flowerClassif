@@ -1,5 +1,5 @@
-from bokeh.layouts import gridplot
-from bokeh.io import output_notebook, show
+from bokeh.layouts import row
+from bokeh.io import output_notebook
 from bokeh.plotting import show, figure
 from bokeh.models import ColumnDataSource
 from bokeh.transform import factor_cmap
@@ -139,42 +139,106 @@ def plot_image_dimensions(im_path):
     show(p)
 
 
-def plot_image_dimensions_old(im_path):
+def plot_training_history(history):
 
-    def _get_dims(ps):
-        h, w = [], []
-        for p in ps:
-            im = skimage.io.imread(p)
-            h.append(im.shape[0])
-            w.append(im.shape[1])
-        return {'h': h, 'w': w}
+    source = ColumnDataSource(data=dict(
+        acc=history.history['acc'],
+        val_acc=history.history['val_acc'],
+        loss=history.history['loss'],
+        val_loss=history.history['val_loss'],
+        epochs=range(1, len(history.history['acc']) + 1)
+    ))
 
-    list_paths = glob.glob(os.path.join(im_path, "*[a-zA-Z]"))
-    list_classes = [pathlib.Path(p).name for p in list_paths]
+    TOOLTIPS = [
+        ("epochs", "@epochs"),
+        ("accuracy", "@acc"),
+        ("val_accuracy", "@val_acc")
+    ]
 
-    dict_images = {
-        class_: glob.glob(os.path.join(p, '*.jpg'))
-        for p, class_ in zip(list_paths, list_classes)
-    }
+    f1 = figure(title='Training and validation accuracy',
+                plot_width=500, plot_height=300, tooltips=TOOLTIPS)
+    f1.line(
+        x='epochs',
+        y='acc',
+        source=source,
+        color="#ff9900",
+        legend='Train'
+    )
+    f1.line(
+        x='epochs',
+        y='val_acc',
+        source=source,
+        color="#0000e6",
+        legend='Validation'
+    )
+    f1.xaxis.axis_label = 'Epochs'
+    f1.yaxis.axis_label = 'Accuracy'
 
-    dict_dims = {
-        class_: _get_dims(dict_images[class_])
-        for class_ in dict_images
-    }
+    TOOLTIPS = [
+        ("epochs", "@epochs"),
+        ("loss", "@loss"),
+        ("val_loss", "@val_loss")
+    ]
+    f2 = figure(title='Training and validation loss',
+                plot_width=500, plot_height=300, tooltips=TOOLTIPS)
+    f2.line(
+        x='epochs',
+        y='loss',
+        source=source,
+        color="#ff9900",
+        legend="Training"
+    )
+    f2.line(
+        x='epochs',
+        y='val_loss',
+        source=source,
+        color="#0000e6",
+        legend="Validation"
+    )
+    f2.xaxis.axis_label = 'Epochs'
+    f2.yaxis.axis_label = 'Cross-entropy loss'
 
-    fig, ax = plt.subplots(nrows=2, ncols=len(list_classes), figsize=(20, 6))
-    title = "Images height and width distribution per class"
-    fig.suptitle(title, fontsize=20)
+    output_notebook()
 
-    for idx, cl in enumerate(list_classes):
-        h, w = dict_dims[cl]['h'], dict_dims[cl]['w']
-        ax[0, idx].hist(h, color="  # 6600ff")
-        ax[0, idx].set_title("Mean Height: {:.1f}".format(np.mean(h)))
-        if idx == 0:
-            ax[0, idx].set_ylabel('Height')
-            ax[1, idx].set_ylabel('Width')
-        ax[1, idx].hist(w, color="#6600ff")
-        ax[1, idx].set_title("Mean Width: {:.1f}".format(np.mean(w)))
-        ax[1, idx].set_xlabel(str(cl))
-    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.show()
+    show(row(f1, f2))
+
+
+# def plot_image_dimensions_old(im_path):
+
+#     def _get_dims(ps):
+#         h, w = [], []
+#         for p in ps:
+#             im = skimage.io.imread(p)
+#             h.append(im.shape[0])
+#             w.append(im.shape[1])
+#         return {'h': h, 'w': w}
+
+#     list_paths = glob.glob(os.path.join(im_path, "*[a-zA-Z]"))
+#     list_classes = [pathlib.Path(p).name for p in list_paths]
+
+#     dict_images = {
+#         class_: glob.glob(os.path.join(p, '*.jpg'))
+#         for p, class_ in zip(list_paths, list_classes)
+#     }
+
+#     dict_dims = {
+#         class_: _get_dims(dict_images[class_])
+#         for class_ in dict_images
+#     }
+
+#     fig, ax = plt.subplots(nrows=2, ncols=len(list_classes), figsize=(20, 6))
+#     title = "Images height and width distribution per class"
+#     fig.suptitle(title, fontsize=20)
+
+#     for idx, cl in enumerate(list_classes):
+#         h, w = dict_dims[cl]['h'], dict_dims[cl]['w']
+#         ax[0, idx].hist(h, color="  # 6600ff")
+#         ax[0, idx].set_title("Mean Height: {:.1f}".format(np.mean(h)))
+#         if idx == 0:
+#             ax[0, idx].set_ylabel('Height')
+#             ax[1, idx].set_ylabel('Width')
+#         ax[1, idx].hist(w, color="#6600ff")
+#         ax[1, idx].set_title("Mean Width: {:.1f}".format(np.mean(w)))
+#         ax[1, idx].set_xlabel(str(cl))
+#     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+#     plt.show()
