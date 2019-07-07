@@ -140,6 +140,11 @@ def plot_image_dimensions(im_path):
 
 
 def plot_training_history(history):
+    """Plot keras training history (training and validation metrics)
+    
+    Arguments:
+        history {keras History object} -- keras history returned by model.fit or model.fit_generator
+    """
 
     source = ColumnDataSource(data=dict(
         acc=history.history['acc'],

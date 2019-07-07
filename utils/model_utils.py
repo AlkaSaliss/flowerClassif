@@ -2,7 +2,34 @@ from sklearn.metrics import classification_report
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import numpy as np
+import tqdm
 import itertools
+import tensorflow as tf
+import shutil
+
+
+class CopyCheckpointToDrive(tf.keras.callbacks.Callback):
+    """Callback to copy the model chceckpoint ot another folder at the end of training.
+       Particularly useful when training on google colab and want to copy best model to google drive
+    """
+
+    def __init__(self, src_path, dest_path):
+        """Set the params
+        
+        Arguments:
+            src_path {str} -- full path to the best model checkpoint
+            dest_path {str} -- path to the destination folder where best model will be copied to,
+                                typically a google drive folder
+        """
+
+        super().__init__()
+
+        self.src_path = src_path
+        self.dest_path = dest_path
+
+    def on_train_end(self, logs=None):
+        shutil.copy(self.src_path, self.dest_path)
+        super().on_train_end(logs=logs)
 
 
 def plot_confusion_matrix(y_true, y_pred, title='Classification Report',
@@ -58,3 +85,59 @@ def plot_confusion_matrix(y_true, y_pred, title='Classification Report',
     plt.xlabel(
         f'Predicted label\naccuracy={accuracy:.4f}; misclass={misclass:.4f}')
     plt.show()
+
+
+def inference_val_gen(gen):
+    """takes in a standard keras generator and yield only the x,
+     instead of x and y, for making predictions
+    
+    Arguments:
+        gen {keras generator} -- a keras generator yielding x and y
+    """
+    for x, y in gen:
+        # due to problem with tpu if batch size is not divisible by the number
+        # of tpu cores (here 8), esp. the last batch we need to a little control here
+        if x.shape[0] % 8 == 0:
+            yield x
+        else:
+            batch_size = x.shape[0]
+            remains = 8 - (batch_size % 8)
+            x = np.concatenate([x, x[-remains:]])
+            yield x
+
+
+def inference_val_gen(gen, gen_type="x"):
+    """takes in a standard keras generator and yield only x or only y,
+     instead of x and y, for making predictions
+    
+    Arguments:
+        gen {keras generator} -- a keras generator yielding x and y
+    
+    Keyword Arguments:
+        gen_type {str} -- string `x` or `y` to chose which value to yield between x and y (default: {"x"})
+    """
+
+    # generator length
+    gen_len = len(gen)
+
+    for i, (x, y) in tqdm.tqdm_notebook(enumerate(gen)):
+        # due to problem with tpu if batch size is not divisible by the number
+        # of tpu cores (here 8), esp. the last batch we need to a little control here
+        batch_size = x.shape[0]
+
+        if batch_size % 8 == 0:
+            if gen_type == "x":
+                yield x
+            else:
+                yield np.argmax(y, axis=1)
+        else:
+            remains = 8 - (batch_size % 8)
+            if gen_type == "x":
+                yield np.concatenate([x, x[-remains:]])
+            else:
+                yield np.argmax(
+                    np.concatenate([y, y[-remains:]]),
+                    axis=1
+                )
+        if i == gen_len - 1:
+            return
