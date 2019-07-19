@@ -15,7 +15,7 @@ class CopyCheckpointToDrive(tf.keras.callbacks.Callback):
 
     def __init__(self, src_path, dest_path):
         """Set the params
-        
+
         Arguments:
             src_path {str} -- full path to the best model checkpoint
             dest_path {str} -- path to the destination folder where best model will be copied to,
@@ -30,6 +30,31 @@ class CopyCheckpointToDrive(tf.keras.callbacks.Callback):
     def on_train_end(self, logs=None):
         shutil.copy(self.src_path, self.dest_path)
         super().on_train_end(logs=logs)
+
+
+class UnfreezeCallback(tf.keras.callbacks.Callback):
+    """Callback for unfreezing a pretrained model after certain number of epochs for finetuning
+    """
+
+    def __init__(self, unfreeze_epoch=10):
+        """Initialize the callback
+        
+        Keyword Arguments:
+            unfreeze_epoch {int} -- epoch at which unfreeze all the weights (default: {10})
+        """
+        super(UnfreezeCallback, self).__init__()
+        self.unfreeze_epoch = unfreeze_epoch
+
+    def set_model(self, model):
+        self.model = model
+
+    def on_epoch_begin(self, epoch, logs=None):
+
+        if epoch == self.unfreeze_epoch:
+            for layer in self.model.layers:
+                layer.trainable = True
+        if epoch == self.unfreeze_epoch + 1:
+            print(self.model.summary())
 
 
 def plot_confusion_matrix(y_true, y_pred, title='Classification Report',
